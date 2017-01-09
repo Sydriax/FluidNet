@@ -88,10 +88,14 @@ function torch.defaultConf()
       -- 'lbfgs' (requires full batch not mini batches)
       modelType = 'default',  -- Choices are 'default', 'yang', 'tog'
       nonlinType = 'relu',  -- Choices are: 'relu', 'relu6', 'sigmoid'.
+      normalizeInput = false,  -- If true, normalize by max(std(chan), thresh)
+      normalizeInputChan = 'UDiv',  -- Which input channel to calculate std.
+      normalizeInputThrehsold = 0.01,  -- Don't normalize input noise.
+      normalizeInputFunc = 'std',  -- Choices are: 'std' or 'norm' (l2)
       optimizationMethod = 'adam',
       optimState = {
         bestPerf = math.huge,
-        learningRate = 0.00025,
+        learningRate = 0.0025,
         weightDecay = 0,  -- L2 regularization parameter
         momentum = 0.9,
         dampening = 0,

@@ -675,10 +675,10 @@ __global__ void kernel_calcVelocityUpdate(
   // Look at the neighbor to the right (pos) and to the left (neg).
   bool geomPos = false;
   bool geomNeg = false;
-  if (pos[dim] == 0) {
+  if (pos[dim] <= 0) {
     geomNeg = true;  // Treat going off the fluid as geometry.
   }
-  if (pos[dim] == size[dim] - 1) {
+  if (pos[dim] >= size[dim] - 1) {
     geomPos = true;  // Treat going off the fluid as geometry. 
   }
   if (pos[dim] > 0) {
@@ -952,10 +952,10 @@ __global__ void kernel_calcVelocityDivergence(
     // Look at the neighbor to the right (pos) and to the left (neg).
     bool geomPos = false;
     bool geomNeg = false;
-    if (pos[dim] == 0) {
+    if (pos[dim] <= 0) {
       geomNeg = true;  // Treat going off the fluid as geometry.
     }
-    if (pos[dim] == size[dim] - 1) {
+    if (pos[dim] >= size[dim] - 1) {
       geomPos = true;  // Treat going off the fluid as geometry. 
     }
     if (pos[dim] > 0) {
@@ -1070,10 +1070,10 @@ __global__ void kernel_calcVelocityDivergenceBackward(
     // Look at the neighbor to the right (pos) and to the left (neg).
     bool geomPos = false;
     bool geomNeg = false;
-    if (pos[dim] == 0) {
+    if (pos[dim] <= 0) {
       geomNeg = true;  // Treat going off the fluid as geometry.
     }
-    if (pos[dim] == size[dim] - 1) {
+    if (pos[dim] >= size[dim] - 1) {
       geomPos = true;  // Treat going off the fluid as geometry. 
     }
     if (pos[dim] > 0) {

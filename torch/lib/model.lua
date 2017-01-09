@@ -60,11 +60,13 @@ function torch.defineModelGraph(conf, mconf, data)
   -- define a constant API even as the user turns on and off input channels.
   local pDiv, UDiv, geom, div
 
-  if mconf.inputChannels.pDiv or mconf.addPressureSkip then  
+  if (mconf.inputChannels.pDiv or mconf.addPressureSkip or
+      (mconf.normalizeInput and mconf.normalizeInputChan == 'pDiv')) then  
     pDiv = nn.SelectTable(1)(input):annotate{name = 'pDiv'}
   end
 
-  if mconf.inputChannels.UDiv or mconf.inputChannels.div then
+  if (mconf.inputChannels.UDiv or mconf.inputChannels.div or
+      (mconf.normalizeInput and mconf.normalizeInputChan == 'uDiv')) then
     UDiv = nn.SelectTable(2)(input):annotate{name = 'UDiv'}
   end
 
@@ -80,6 +82,48 @@ function torch.defineModelGraph(conf, mconf, data)
     div = nn.Unsqueeze(2)(divScalar)
 
     div:annotate{name = 'div'}
+  end
+
+  local scale
+  if mconf.normalizeInput then
+    local scaleNet = nn.Sequential()
+    -- reshape from (b x 2/3 x d x h x w) to (b x -1)
+    scaleNet:add(nn.View(-1):setNumInputDims(4))
+    if mconf.normalizeInputFunc == 'std' then
+      scaleNet:add(nn.StandardDeviation(2))
+      scaleNet:add(nn.Squeeze())
+    elseif mconf.normalizeInputFunc == 'norm' then
+      scaleNet:add(nn.Power(2))
+      scaleNet:add(nn.Sum(2))
+      scaleNet:add(nn.Sqrt())
+    else
+      error('Incorrect normalize input function')
+    end
+    scaleNet:add(nn.Clamp(mconf.normalizeInputThrehsold, math.huge))
+
+    if mconf.normalizeInputChan == 'UDiv' then
+      scale = scaleNet(UDiv)
+    elseif mconf.normalizeInputChan == 'pDiv' then
+      scale = scaleNet(pDiv)
+    elseif mconf.normalizeInputChan == 'div' then
+      scale = scaleNet(div)
+    else
+      error('Incorrect normalize input channel.')
+    end
+    scale:annotate{name = 'input_scale'}
+
+    if pDiv ~= nil then
+      pDiv = nn.ApplyScale(true)({pDiv, scale})  -- Applies pDiv *= (1 / scale)
+      pDiv:annotate{name = 'pDivScaled'}
+    end
+    if UDiv ~= nil then
+      UDiv = nn.ApplyScale(true)({UDiv, scale})
+      UDiv:annotate{name = 'UDivScaled'}
+    end
+    if div ~= nil then
+      div = nn.ApplyScale(true)({div, scale})
+      div:annotate{name = 'divScaled'}
+    end
   end
 
   if mconf.twoDim then
@@ -393,23 +437,32 @@ function torch.defineModelGraph(conf, mconf, data)
   p = addConv(hl, inDims, 1, ksize[#ksize], usize[#usize])
 
   -- Final output nodes.
-  p:annotate{name = 'p'}
+  p:annotate{name = 'pPred'}
 
   -- Construct a network to calculate the gradient of pressure.
-  local matchManta = false
+  local matchManta = true
   local deltaUNet = nn.VelocityUpdate(matchManta)
   -- Manta may have p in some unknown units.
   -- Therefore we should apply a constant scale to p in order to
   -- correct U (recall U = UDiv - grad(p)).
-  local pScaled = nn.Mul()(p):annotate{name = 'pScaled'}
+  local pScaled = nn.Mul()(p):annotate{name = 'pMul'}
   local deltaU = deltaUNet({pScaled, geom}):annotate{name = 'deltaU'}
-  local U = nn.CSubTable()({UDiv, deltaU}):annotate{name = 'U'}
+  local U = nn.CSubTable()({UDiv, deltaU}):annotate{name = 'UPred'}
 
   if mconf.twoDim then
     -- We need to add BACK a unary dimension.
     p = nn.Unsqueeze(3)(p)  -- Adds a new singleton dimension at dim 3.
     U = nn.Unsqueeze(3)(U)
   end
+
+  -- Now we need to UNDO the scale factor we applied on the input.
+  if mconf.normalizeInput then
+    p = nn.ApplyScale(false)({p, scale})  -- Applies p' *= scale
+    U = nn.ApplyScale(false)({U, scale})
+  end
+
+  p:annotate{name = 'p'}
+  U:annotate{name = 'U'}
 
   -- Construct final graph.
   local inputNodes = {input}

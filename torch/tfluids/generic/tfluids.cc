@@ -1473,10 +1473,10 @@ static inline void tfluids_(Main_calcVelocityUpdateAlongDim)(
   // Look at the neighbor to the right (pos) and to the left (neg).
   bool geomPos = false;
   bool geomNeg = false;
-  if (pos[dim] == 0) {
+  if (pos[dim] <= 0) {
     geomNeg = true;  // Treat going off the fluid as geometry.
   }
-  if (pos[dim] == size[dim] - 1) {
+  if (pos[dim] >= size[dim] - 1) {
     geomPos = true;  // Treat going off the fluid as geometry. 
   }
   if (pos[dim] > 0) {
@@ -1747,10 +1747,10 @@ static inline void tfluids_(Main_calcVelocityDivergenceCell)(
     // Look at the neighbor to the right (pos) and to the left (neg).
     bool geomPos = false;
     bool geomNeg = false;
-    if (pos[dim] == 0) {
+    if (pos[dim] <= 0) {
       geomNeg = true;  // Treat going off the fluid as geometry.
     }
-    if (pos[dim] == size[dim] - 1) {
+    if (pos[dim] >= size[dim] - 1) {
       geomPos = true;  // Treat going off the fluid as geometry. 
     }
     if (pos[dim] > 0) {
@@ -1858,10 +1858,10 @@ static inline void tfluids_(Main_calcVelocityDivergenceCellBackward)(
     // Look at the neighbor to the right (pos) and to the left (neg).
     bool geomPos = false;
     bool geomNeg = false;
-    if (pos[dim] == 0) {
+    if (pos[dim] <= 0) {
       geomNeg = true;  // Treat going off the fluid as geometry.
     }
-    if (pos[dim] == size[dim] - 1) {
+    if (pos[dim] >= size[dim] - 1) {
       geomPos = true;  // Treat going off the fluid as geometry. 
     }
     if (pos[dim] > 0) {
